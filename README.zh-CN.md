@@ -6,6 +6,37 @@
     <h1>Token Monitor</h1>
 </div>
 
+## 关于此 Fork：新增 Verdent 用量支持
+
+这是基于 [Javis603/token-monitor](https://github.com/Javis603/token-monitor) 的 [svbird Fork](https://github.com/svbird/token-monitor/tree/feat/verdent-usage)。**此版本的 Verdent 扩展、界面接入、测试及文档由 OpenAI Codex 按照 Fork 维护者的需求制作。** 原版 Token Monitor 由上游作者及贡献者开发。本次新增功能位于 `feat/verdent-usage` 分支，不属于 Verdent 官方集成。
+
+相对于此分支所基于的上游版本，新增内容包括：
+
+- **读取真实 Verdent Token 与 Credits**：通过已登录账号查询账单明细，保留输入、输出、缓存读取、缓存创建及总 Token。Credits 与货币金额分别展示，零 Credits 正常保留，不用模型价格估算冒充账单。
+- **接入原有统计界面**：Verdent 与 Codex 等工具并列显示，已采集历史计入本机 Token 总数、模型分组、趋势、热力图及活跃统计。支持按功能、子代理等接口已有字段查看明细；同名模型的 Eco 与非 Eco 用量分别统计，Eco 模型名追加 `[eco]`。
+- **设置与登录管理**：新增独立的 Verdent 设置条目，进入管理窗口配置账号与采集。在隔离的 Electron 窗口完成登录，各账号分别保存本机会话及快照。
+- **刷新与历史快照**：启动时立即检测，默认每 30 秒增量刷新；间隔可按整数秒设置，最低 1 秒，填 0 仅启动与手动。每轮完成后再等待设定间隔。首次读取服务器保留的最近 3 个月，后续通过本地快照增量更新；可手动“回溯最近 3 个月”补齐或复核。更早的本地历史持续保留，主页日期选择只控制显示；失败时保留最后一次完整结果。
+- **Windows 快捷启动与隐私检查**：安装依赖后双击 `start-token-monitor.cmd` 即可启动。账号数据、真实历史与浏览器会话不纳入 Git，公开测试使用合成样本；`npm run verify:privacy` 检查已知私有数据路径及序列化账号标识，防止误提交。
+
+### 在 Windows 上运行此分支
+
+先安装 Node.js 22.15+（推荐 24），然后执行：
+
+```powershell
+git clone --branch feat/verdent-usage https://github.com/svbird/token-monitor.git
+cd token-monitor
+npm ci
+.\start-token-monitor.cmd
+```
+
+打开 **设置 → Verdent**，启用采集，进入账号管理并完成登录。快捷入口将本地数据保存在被 Git 忽略的 `tmp/verdent-desktop/`，不配置 Windows 开机启动。`npm start` 使用另一个应用数据目录，因此登录态也独立。
+
+**当前范围与限制**：Verdent 接入的是 Electron 桌面端，其用量不进入 Hub/iCloud 同步或通用导出。接口未提供的项目、会话、请求次数及生成速度不做推测统计。日期与时间显示跟随系统时区，同一时刻的多条记录均保留；服务端修正旧记录后，缓存尾部可能需要完整重查才能更新。本 Fork 的 Verdent 流程已在 Windows 使用，尚未验证 macOS/Linux。此分支尚未发布安装包，下方原版徽章及下载链接仍指向上游构建。
+
+详细说明见 [Verdent 安装与使用](docs/verdent.md) 和 [验证方法及限制](docs/verdent-verification.md)。以下保留上游原版 README。
+
+---
+
 <p align="center">
     <em>跨设备聚合每个 AI 编程工具的实时用量。</em>
 </p>

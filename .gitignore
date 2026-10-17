@@ -23,3 +23,19 @@ worker/.wrangler/
 worker/node_modules/
 worker/.dev.vars
 devlog/
+
+# Local account state, usage snapshots and Chromium profiles (never publish).
+verdent-usage.json*
+credentials.json*
+auth.json
+Partitions/
+userData/
+user-data/
+Cookies
+Cookies-*
+Login Data
+Login Data-*
+Local State
+Local Storage/
+Session Storage/
+/settings.json

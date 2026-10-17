@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Verdent 用量 — Token Monitor</title>
+  <link rel="stylesheet" href="verdent.css">
+</head>
+<body>
+  <header><div><span class="eyebrow">TOKEN MONITOR / ACCOUNT USAGE</span><h1>Verdent 用量</h1><p>真实 Token 与 Credits · 系统时区 · 本机保存</p></div><label class="toggle"><input id="enabled" type="checkbox"> 启用 Verdent</label></header>
+  <main>
+    <section class="panel">
+      <div class="row"><label>本地账号槽<select id="profile"></select></label><label>新账号标签<input id="profileLabel" maxlength="80" placeholder="例如：个人账号"></label><button id="addProfile">添加账号</button><button id="login">登录 / 重新登录</button><button id="completeLogin">完成登录并刷新</button><button id="clearSession" class="subtle">清除本地登录态</button></div>
+      <p class="hint">请在独立的 Verdent 窗口登录，完成后返回此页刷新。账号槽使用独立的本机会话；不会共享 Chrome / Edge 登录。账号身份将在采集时核对。</p>
+      <p id="loginStatus" class="hint" role="status" aria-live="polite"></p>
+      <div class="row"><span>保存全部可读历史 · 按本机快照增量更新</span><label>刷新间隔（秒）<input id="interval" type="number" min="0" max="3600" step="1" value="30" required></label><button id="save">保存配置</button><button id="refresh" class="primary">刷新用量</button><button id="refreshFull" class="subtle">回溯最近 3 个月</button><button id="cancel" class="subtle" hidden>取消采集</button></div>
+      <p class="hint">在线查询最近 3 个月，截至本次刷新开始时；更早的本地历史持续保留。“回溯最近 3 个月”重新读取全部分页，普通刷新复用已保存的历史。主页日期选项只控制显示。启动时立即检查，默认每 30 秒增量刷新；最短 1 秒，填 0 仅启动与手动。每轮完成后再等待所设间隔，不并发采集。</p>
+      <div id="status" role="status" aria-live="polite">尚未采集</div><div id="error" role="alert" hidden></div>
+    </section>
+    <section id="usage" hidden>
+      <div class="section-heading"><h2>选定范围</h2><span id="snapshotInfo" class="hint"></span></div>
+      <p id="coverage" class="hint"></p><p id="comparison" class="hint"></p>
+      <div id="cards" class="cards"></div>
+      <section class="panel"><div class="section-heading"><h2>用量分组</h2><label>分组维度<select id="dimension"><option value="model_name">模型</option><option value="feature">功能类型</option><option value="first_create_date">首次创建日期（系统本地时间）</option><option value="first_create_time">首次创建时间（按秒）</option><option value="subagent_type">子代理类型</option><option value="business_sub_type">业务子类型</option><option value="platform">平台</option><option value="source">来源</option></select></label></div><div class="table-wrap"><table><thead><tr><th>分组</th><th>输入</th><th>输出</th><th>缓存读取</th><th>缓存创建</th><th>总 Token</th><th>Credits</th><th>记录条数</th></tr></thead><tbody id="groups"></tbody></table></div></section>
+    </section>
+    <section class="panel"><h2>范围历史</h2><p class="hint">保存在线范围快照与更早的本地归档；重复刷新不累加，重叠范围采用最新结果。请选择一行查看。尚未验证身份时，缓存仅代表各行显示的历史账号指纹。</p><div class="table-wrap"><table><thead><tr><th>日期范围（系统本地时间）</th><th>账号指纹</th><th>总 Token</th><th>Credits</th><th>记录条数</th><th>最后成功更新</th></tr></thead><tbody id="history"></tbody></table></div><p id="empty" class="hint">暂无成功快照。配置并登录后，点击“刷新用量”。</p></section>
+    <section class="panel"><div class="section-heading"><h2>真实接口验证</h2><button id="validate">验证采集范围与逐日合计（7 天）</button></div><p class="hint">将顺序读取周范围、7 个单日和周范围复查，均读取全部分页；额外验证 Electron 后台 session.fetch。此操作只读，不写入历史。可先在范围历史中选择已结束且稳定的 7 天，再运行验证；不改变自动采集范围。日期端点语义及正常新增／聚合行为仍需专门实测。</p><pre id="validation">尚未验证</pre></section>
+    <section id="anomalyPanel" class="panel" hidden><h2>本次异常原始字段</h2><p class="hint">这些记录未覆盖成功快照，程序未修正 total_tokens 或猜测分类。</p><pre id="anomalies"></pre></section>
+    <aside>时间分组以 first_create_time 为准，使用系统本地时间；同秒多条记录全部保留。记录条数不代表请求次数。Credits 与货币金额分别处理；0 Credits 保留为 0，不估算账单。已采集历史计入主页总量、工具、模型及日期趋势。账号用量不归属于单台设备，不生成项目、会话、请求次数、时长或速度统计，也不参与多设备同步。分页两次内容相同也不能保证服务端事务一致性。</aside>
+  </main>
+  <script src="verdent.js"></script>
+</body>
+</html>

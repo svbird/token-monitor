@@ -26,6 +26,8 @@ function fixture() {
   const history = deferred();
   const calls = [];
   const context = {
+    verdentRefreshes: 0,
+    verdentExtension: { refresh: () => { context.verdentRefreshes++; } },
     deviceRuntimeHandle: {
       refreshLimits: (...args) => { calls.push(['limits', ...args]); return limits.promise; },
       tick: (...args) => { calls.push(['usage', ...args]); return usage.promise; }
@@ -83,6 +85,7 @@ for (const first of ['App', 'Edge Dock']) {
     const app = () => context.refreshManualStats();
     const dock = () => context.refreshStatsFromEdgeDock();
     const requests = first === 'App' ? [app(), dock()] : [dock(), app()];
+    assert.equal(context.verdentRefreshes, 1, 'shared manual refresh triggers Verdent once');
     const both = Promise.all(requests).then((values) => { completed = true; return values; });
     assert.equal(JSON.stringify(calls), JSON.stringify([
       ['limits', { all: true }, 'manual'],

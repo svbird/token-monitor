@@ -145,3 +145,5 @@ html.native-high-contrast .dash-cards { border-color: var(--line-strong); }
 }
 
 .dash-card-v .usage-cost-info { margin-inline-start: 3px; }
+
+.dash-bd-credits { width: auto; min-width: 42px; white-space: nowrap; }

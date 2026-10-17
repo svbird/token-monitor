@@ -397,6 +397,8 @@ function renderBreakdown() {
   
   const clientTotals = {};
   const modelTotals = {};
+  const clientCredits = new Map();
+  const modelCredits = new Map();
   let grandTotal = 0;
   
   for (const d of daily) {
@@ -407,10 +409,12 @@ function renderBreakdown() {
       });
     }
     if (d.perModel) Object.entries(d.perModel).forEach(([k, v]) => modelTotals[k] = (modelTotals[k] || 0) + Number(v.tokens || 0));
+    for (const [key, value] of Object.entries(d.perClient || {})) if (value.verdentCredits !== undefined) clientCredits.set(key, (clientCredits.get(key) || 0) + value.verdentCredits);
+    for (const [key, value] of Object.entries(d.perModel || {})) if (value.verdentCredits !== undefined) modelCredits.set(key, (modelCredits.get(key) || 0) + value.verdentCredits);
     grandTotal += Number(d.tokens || 0);
   }
   
-  const buildCol = (titleKey, map, colorFn) => {
+  const buildCol = (titleKey, map, colorFn, credits) => {
     const rows = Object.entries(map).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 5);
     if (rows.length === 0) return '';
     const maxVal = Math.max(...rows.map(x => x[1]));
@@ -420,17 +424,17 @@ function renderBreakdown() {
       const color = displayColor(colorFn(key));
       const motionKey = `${titleKey}:${encodeURIComponent(key)}`;
       return `<div class="dash-bd-row">
-        <span class="dash-bd-name"><span class="dash-bd-swatch" data-c="${color}"></span>${String(key).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}</span>
+        <span class="dash-bd-name"><span class="dash-bd-swatch" data-c="${color}"></span>${String(key === 'verdent' ? 'Verdent' : key).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}</span>
         <div class="dash-bd-bar-bg"><div class="dash-bd-bar-fill" data-motion-key="${motionKey}" data-w="${Number(pctMax) / 100}" data-c="${color}"></div></div>
         <span class="dash-bd-val">${formatCompact(val)}</span>
-        <span class="dash-bd-pct">${pctGrand}%</span>
+        <span class="dash-bd-pct${credits.has(key) ? ' dash-bd-credits' : ''}">${credits.has(key) ? window.TokenMonitorVerdentPresentation.creditsLabel(credits.get(key)) : `${pctGrand}%`}</span>
       </div>`;
     }).join('');
     return `<div class="dash-breakdown-col"><div class="dash-breakdown-title" data-i18n="${titleKey}">${t(titleKey)}</div>${html}</div>`;
   };
   
-  const colModel = buildCol('dashboard.stack.model', modelTotals, charts.modelColor);
-  const colClient = buildCol('dashboard.stack.client', clientTotals, (k) => charts.clientColors[k] || charts.clientColors.default);
+  const colModel = buildCol('dashboard.stack.model', modelTotals, charts.modelColor, modelCredits);
+  const colClient = buildCol('dashboard.stack.client', clientTotals, (k) => charts.clientColors[k] || charts.clientColors.default, clientCredits);
   
   elsBreakdown.innerHTML = colModel + colClient;
   applySwatchColors(elsBreakdown);
@@ -511,8 +515,9 @@ function renderActivity() {
     ? charts.heatmapSvg(heat, { monthLabel: (m) => monthLabel(m.label), initialHidden: hideHeatmapForEntry })
     : '';
   animateHeatmapEntry();
-  state.dayMap = new Map((state.history?.daily || []).map((d) => [String(d.date).slice(0, 10), { tokens: Number(d.tokens || 0), cost: Number(d.cost || 0), unpricedTokens: Number(d.unpricedTokens || 0) }]));
+  state.dayMap = new Map((state.history?.daily || []).map((d) => [String(d.date).slice(0, 10), { verdentCredits: d.verdentCredits, tokens: Number(d.tokens || 0), cost: Number(d.cost || 0), unpricedTokens: Number(d.unpricedTokens || 0) }]));
   const cards = charts.statsCards(state.history?.summary || {});
+  if (state.history?.summary?.verdentCredits !== undefined) cards.push({ key: 'verdentCredits', value: state.history.summary.verdentCredits, kind: 'credits' });
   const LABELS = {
     totalTokens: 'dashboard.stat.totalTokens', totalCost: 'dashboard.stat.totalCost',
     activeDays: 'trends.activeDays', currentStreak: 'trends.currentStreak',
@@ -520,8 +525,8 @@ function renderActivity() {
     favoriteModel: 'dashboard.stat.favoriteModel', messages: 'dashboard.stat.messages'
   };
   els.cards.innerHTML = charts.statsCardsHtml(cards, {
-    label: (k) => t(LABELS[k] || k),
-    format: (c) => (c.kind === 'cost' ? formatCostCompact(c.value, state.history?.summary?.unpricedTokens)
+    label: (k) => k === 'verdentCredits' ? 'Verdent Credits' : t(LABELS[k] || k),
+    format: (c) => (c.kind === 'credits' ? window.TokenMonitorVerdentPresentation.creditsLabel(c.value) : c.kind === 'cost' ? formatCostCompact(c.value, state.history?.summary?.unpricedTokens)
       : c.kind === 'duration' ? formatDurationCompact(c.value)
         : c.kind === 'model' ? (c.value || '—') : formatCompact(c.value))
   });
@@ -632,6 +637,7 @@ function showHeatTooltip(date, day, ev) {
   html += `<div class="tt-row"><span class="tt-name">${tokLabel}</span><span class="tt-val">${formatCompact(tokens)}</span></div>`;
   const missing = Number(day?.unpricedTokens || 0);
   if (cost > 0 || missing > 0) html += `<div class="tt-row"><span class="tt-name">${costLabel}</span><span class="tt-val">${formatCost(cost, missing)}</span></div>`;
+  if (day?.verdentCredits !== undefined) html += `<div class="tt-row"><span class="tt-name">Verdent</span><span class="tt-val">${window.TokenMonitorVerdentPresentation.creditsLabel(day.verdentCredits)}</span></div>`;
   if (missing > 0) html += `<div class="tt-row">${t('usage.excludedFromCost', { tokens: Math.round(missing).toLocaleString('en-US') })}</div>`;
   els.tooltip.innerHTML = html;
   positionTooltip(ev);

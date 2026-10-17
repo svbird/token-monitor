@@ -6,6 +6,37 @@
     <h1>Token Monitor</h1>
 </div>
 
+## About this fork: Verdent usage support
+
+This is [svbird's fork](https://github.com/svbird/token-monitor/tree/feat/verdent-usage) of [Javis603/token-monitor](https://github.com/Javis603/token-monitor). **The Verdent extension, its integration, tests, and documentation were developed by OpenAI Codex under the fork owner's direction.** The original Token Monitor application remains the work of its upstream authors. These additions live on the `feat/verdent-usage` branch and are not an official Verdent integration.
+
+Compared with the upstream version this branch was based on, this fork adds:
+
+- **Actual Verdent Tokens and Credits:** read the signed-in account's billing details, including input, output, cache read, cache creation, and total Tokens. Credits remain separate from currency; zero Credits are preserved without estimating a bill from model prices.
+- **Integrated statistics:** show Verdent alongside Codex and other tools and include its collected history in local Token totals, model breakdowns, trends, heatmaps, and activity statistics. Group details by feature, subagent, and other available fields. Eco and non-Eco usage stay separate, with `[eco]` appended to Eco model names.
+- **Settings and login:** a dedicated Verdent settings section opens an account and usage management window. Sign in through an isolated Electron window, with separate local sessions and snapshots for each account.
+- **Refresh and history:** check immediately when the app starts, then poll every 30 seconds by default. Set a whole-second interval down to 1 second, or 0 for startup/manual-only checks. Each attempt completes before the next delay starts. Initially read the server-retained three months, then reuse matching local snapshots for incremental updates. A three-month backfill button rereads all online pages. Older local records stay archived, display periods only filter the view, and errors preserve the last complete result.
+- **Windows quick launch and privacy checks:** double-click `start-token-monitor.cmd` after installing dependencies. Runtime account data, usage history, and browser sessions are excluded from Git; public test fixtures are synthetic. `npm run verify:privacy` checks known private paths and serialized account identities before publication.
+
+### Run this branch on Windows
+
+With Node.js 22.15+ installed (24 recommended):
+
+```powershell
+git clone --branch feat/verdent-usage https://github.com/svbird/token-monitor.git
+cd token-monitor
+npm ci
+.\start-token-monitor.cmd
+```
+
+Open **Settings → Verdent**, enable collection, open account management, and sign in. This launcher keeps local data under the ignored `tmp/verdent-desktop/` directory. It does not configure Windows startup. `npm start` uses a separate application data directory and therefore a separate login session.
+
+**Scope:** Verdent currently integrates with the Electron desktop app. Its usage is not sent to Hub/iCloud sync or included in generic exports. No project/session attribution, request counts, or generation speed is invented where the API lacks those fields. Dates and displayed times follow the system timezone. Records sharing a timestamp are all retained. Cached historical records can require a full reread to pick up server corrections. This fork has been exercised on Windows; its Verdent flow has not been validated on macOS/Linux. No installer release has been published for this branch; the release badges and downloads below refer to upstream builds.
+
+See the [Verdent setup and behavior guide](docs/verdent.md) and [verification procedures and limitations](docs/verdent-verification.md) for details. The original upstream README continues below.
+
+---
+
 <p align="center">
     <em>One live dashboard for every AI coding tool, synced across every machine.</em>
 </p>

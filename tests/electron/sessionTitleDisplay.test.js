@@ -40,6 +40,7 @@ test('hiding titles copies display paths and leaves stored sessions and other me
 test('main presentation caches restore titles from the same snapshot when re-enabled', () => {
   const source = fs.readFileSync(path.join(__dirname, '../../src/electron/main.js'), 'utf8');
   const context = {
+    verdentExtension: undefined,
     settings: {}, ...modelAliases, withoutSessionTitles, withoutSessionTitleStats,
     presentationCache: createStatsPresentationCache(), allTimeSessionsCache: createStatsPresentationCache(),
     snapshotLocalDevices: new WeakMap(), syncProvenanceActive: () => false,
@@ -78,6 +79,7 @@ test('saving the title preference immediately republishes Today and Home data fr
   let adopted;
   const original = { periods: { today: { sessions: { 'codex:s': session() } }, month: { sessions: {} } } };
   const context = {
+    verdentExtension: undefined,
     settings: { sessionTitlesEnabled: false }, previousSettingsState: { sessionTitlesEnabled: true },
     latestStats: original, mode: 'local', ...modelAliases, withoutSessionTitleStats,
     presentationCache: createStatsPresentationCache(), syncProvenanceActive: () => false,
@@ -135,6 +137,7 @@ test('a stats response started before hiding titles adopts the current display p
   const state = { settings: {}, stats: null };
   const noop = () => {};
   const context = {
+    verdentExtension: undefined,
     state, window: { TokenMonitorSessionTitleDisplay: { withoutSessionTitleStats },
       tokenMonitor: { getStats: () => new Promise(resolve => { resolveStats = resolve; }) } },
     allTimeSessions: { invalidate: noop, attach: value => value },

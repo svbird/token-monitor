@@ -26,6 +26,8 @@ const motionPreferenceApi = require('./motionPreference');
 const tokenNumberAnimationApi = require('./tokenNumberAnimation');
 const { clearBackgroundImage, getBackgroundImage, importBackgroundImage } = require('./backgroundImage');
 const { createClientSourceIpcHandlers } = require('./clientSourceIpc');
+const { installVerdent } = require('./providers/verdent/controller');
+let verdentExtension;
 const { createClaudeWebFetch } = require('./providers/claude/webFetch');
 const { createMimoExchangeFetch } = require('./providers/mimo/exchangeFetch');
 const { runAntigravityOAuthLogin } = require('./providers/antigravity/oauthLogin');
@@ -3073,12 +3075,15 @@ function electronPresentationStats(stats) {
   };
   const aliases = settings?.modelAliases;
   const grouping = settings?.modelAliasGrouping;
-  const key = JSON.stringify([limitOptions, aliases ?? null, grouping ?? null, settings?.sessionTitlesEnabled !== false]);
-  return presentationCache.get(stats, key, () => projectModelAliasStats(
-    projectLimitStatsForDisplay(settings?.sessionTitlesEnabled === false ? withoutSessionTitleStats(stats) : stats, limitOptions),
-    aliases,
-    { grouping }
-  ));
+  const key = JSON.stringify([limitOptions, aliases ?? null, grouping ?? null, settings?.sessionTitlesEnabled !== false, verdentExtension?.revision()]);
+  return presentationCache.get(stats, key, () => {
+    const source = settings?.sessionTitlesEnabled === false ? withoutSessionTitleStats(stats) : stats;
+    return projectModelAliasStats(
+      projectLimitStatsForDisplay(verdentExtension?.projectStats(source) || source, limitOptions),
+      aliases,
+      { grouping }
+    );
+  });
 }
 
 const allTimeSessionsCache = createStatsPresentationCache();
@@ -6520,6 +6525,7 @@ function refreshManualStats() {
   }
   const revision = statsPushRevision;
   const request = { runtime, generation, promise: null };
+  verdentExtension?.refresh();
   request.promise = fetchStats({ force: true, forceHistory: true, forceSelfSync: true }).then((stats) => {
     // Both buttons update the dock once. A push received while this read was
     // pending has already taken over, so a late read must not replace it.
@@ -7381,7 +7387,7 @@ async function getDashboardHistory(options = {}) {
   const resolved = includeDevices
     ? await resolveCompleteHistoryWithDevices(historyResolverOptions())
     : { history: await getCompleteHistory(), deviceHistories: undefined };
-  const history = resolved.history;
+  const history = verdentExtension?.projectHistory(resolved.history) || resolved.history;
   const source = completeHistorySource(historyResolverOptions());
   return projectModelAliasHistory({
     ...history,
@@ -7455,6 +7461,10 @@ function rebuildWindow() {
 app.whenReady().then(() => {
   if (process.platform === 'darwin' && app.dock) app.dock.setIcon(APP_ICON_PATH);
   ensureSettingsLoaded();
+  verdentExtension = installVerdent({ app, BrowserWindow, session, ipcMain, powerMonitor, onUsageChanged: () => {
+    refreshLimitStatsPresentation();
+    for (const win of [mainWindow, dashboardWindow]) if (win && !win.isDestroyed()) win.webContents.send('dashboard:historyChanged');
+  } });
   // Switching the OS between light and dark repaints the taskbar underneath an
   // icon we have already handed to the shell, so the renderer has to recompose
   // it — nothing else in the app would notice the change.
@@ -9246,6 +9256,7 @@ app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(
 // OS-initiated logout or restart on macOS.
 app.on('before-quit', () => {
   quitRequested = true;
+  verdentExtension?.dispose();
   antigravityOAuthLoginController?.abort();
   workbuddyManagedAccountService?.cancelLogin();
   resetMacWidgetReloadThrottle();

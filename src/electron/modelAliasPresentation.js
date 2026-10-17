@@ -12,6 +12,7 @@ const { isGrokBotSession } = require('./renderer/sessionRows');
 const MODEL_MAP_FIELDS = [
   'models',
   'modelCosts',
+  'modelCredits',
   'modelUnpricedTokens',
   'modelCacheReads',
   'modelCacheWrites',
@@ -344,12 +345,19 @@ function projectHistory(history, resolve, semantics) {
 // are outside the setting: an alias the user typed is always applied.
 function aliasPlan(modelIds, aliases, grouping) {
   const explicit = normalizeModelAliases(aliases);
-  const automatic = inferModelAliases(modelIds, grouping);
+  const ids = modelIds.flatMap(model => model.endsWith('[eco]') ? [model, model.slice(0, -5)] : [model]);
+  const automatic = inferModelAliases(ids, grouping);
+  const resolve = createModelAliasResolver(explicit, ids, grouping);
   return {
     explicit,
     automatic,
     active: Object.keys(explicit).length > 0 || Object.keys(automatic).length > 0,
-    resolve: createModelAliasResolver(explicit, modelIds, grouping)
+    resolve: model => {
+      if (typeof model !== 'string' || !model.endsWith('[eco]')) return resolve(model);
+      const direct = resolve(model);
+      const aliasTarget = direct === model ? resolve(model.slice(0, -5)) : direct;
+      return `${aliasTarget.replace(/\[eco\]$/, '')}[eco]`;
+    }
   };
 }
 
@@ -360,6 +368,23 @@ function projectModelAliasHistory(history, aliases, options = {}) {
   const grouping = normalizeModelAliasGrouping(options.grouping);
   const plan = aliasPlan(grouping === 'off' ? [] : [...collectHistoryModelIds(history)], aliases, grouping);
   return plan.active ? projectHistory(history, plan.resolve, 'aggregate') : history;
+}
+
+// Derived ranges are built in the renderer from these same daily buckets.
+function projectVerdentUsage(usage, resolve) {
+  if (!usage?.daily) return usage;
+  const daily = mapRows(usage.daily, row => {
+    if (!Object.keys(row.models).some(model => resolve(model) !== model)) return row;
+    const models = new Map();
+    for (const [name, bucket] of Object.entries(row.models)) {
+      const key = resolve(name);
+      const target = models.get(key) || { tokens: 0, credits: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+      for (const field of Object.keys(target)) target[field] += num(bucket[field]);
+      models.set(key, target);
+    }
+    return { ...row, models: Object.fromEntries(models) };
+  });
+  return daily === usage.daily ? usage : { ...usage, daily };
 }
 
 function projectModelAliasStats(stats, aliases, options = {}) {
@@ -375,6 +400,7 @@ function projectModelAliasStats(stats, aliases, options = {}) {
       if (result === record) result = { ...record };
       result[field] = projected;
     };
+    if (record.verdentUsage) set('verdentUsage', projectVerdentUsage(record.verdentUsage, plan.resolve));
     if (record.periods) set('periods', mapValues(record.periods, (period) => projectUsage(period, plan.resolve)));
     for (const field of ['today', 'month', 'allTime']) {
       if (record[field]) set(field, projectUsage(record[field], plan.resolve));

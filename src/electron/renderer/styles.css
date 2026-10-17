@@ -777,6 +777,7 @@ span.settings-note.settings-item-desc {
   width: 64px;
   text-align: right;
 }
+#verdentSettingsError { color: var(--danger, #d97070); }
 /* Inline text options (Codex-style): plain labels, the active one gets a soft pill. */
 .inline-options { display: inline-flex; align-items: center; gap: 2px; }
 /* Single-word options that cannot shrink ("Personalizado") wrap rather than clip. */
@@ -1157,6 +1158,8 @@ span.settings-note.settings-item-desc {
 .settings-section-icon-main { --settings-section-icon-url: url("icons/settings/main.svg"); }
 .settings-section-icon-window { --settings-section-icon-url: url("icons/settings/window.svg"); }
 .settings-section-icon-tools { --settings-section-icon-url: url("icons/settings/collection.svg"); }
+.settings-section-icon-verdent { --settings-section-icon-url: url("icons/settings/verdent.svg"); }
+.row-icon-verdent { mask: url("icons/settings/verdent.svg") center / contain no-repeat; background-color: currentColor; }
 .settings-section-icon-limits { --settings-section-icon-url: url("icons/settings/limits.svg"); }
 .settings-section-icon-sync { --settings-section-icon-url: url("icons/settings/sync.svg"); }
 .settings-section-icon-subscriptions { --settings-section-icon-url: url("icons/settings/subscriptions.svg"); }

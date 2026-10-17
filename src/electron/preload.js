@@ -3,6 +3,14 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('tokenMonitor', {
+  openVerdent: () => ipcRenderer.invoke('verdent:open'),
+  verdentCommand: (command, input) => ['get', 'configure', 'addProfile', 'login', 'completeLogin', 'clearSession', 'refresh', 'cancel'].includes(command)
+    ? ipcRenderer.invoke('verdent:command', command, input) : Promise.reject(new Error('Unknown Verdent command')),
+  onVerdentState: callback => {
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on('verdent:state', listener);
+    return () => ipcRenderer.removeListener('verdent:state', listener);
+  },
   getSettings: () => ipcRenderer.invoke('settings:get'),
   updateSettings: (patch) => {
     // Membership is owned by the dedicated account commands, never generic settings.

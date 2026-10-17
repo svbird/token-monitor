@@ -64,6 +64,7 @@ function osIconFor(platform) {
 
 function iconKindFor(rowData, breakdown) {
   if (!toolIconsEnabled(state.settings?.showToolIcons)) return { kind: 'dot' };
+  if (rowData.key === 'verdent' || rowData.client === 'verdent') return { kind: 'icon', iconClass: 'row-icon-verdent' };
   if (breakdown === 'device') {
     const os = osIconFor(rowData.platform);
     return os ? { kind: 'icon', iconClass: `row-icon-os-${os}` } : { kind: 'dot' };
@@ -295,7 +296,7 @@ const TOKEN_MONITOR_ISSUES_URL = `${TOKEN_MONITOR_REPOSITORY_URL}/issues/new/cho
 const TOKEN_MONITOR_WEBSITE_URL = 'https://javis-ai.com/token-monitor/';
 const TOKEN_MONITOR_WSL_SQLITE_GUIDE_URL = `${TOKEN_MONITOR_REPOSITORY_URL}/blob/main/docs/wsl-sqlite-setup.md`;
 const serviceStatusProviderPreferencesApi = window.TokenMonitorServiceStatusProviderPreferences;
-const SETTINGS_SECTION_IDS = ['general', 'main', 'window', 'appearance', 'tools', 'limits', 'subscriptions', 'sync'];
+const SETTINGS_SECTION_IDS = ['general', 'main', 'window', 'appearance', 'tools', 'verdent', 'limits', 'subscriptions', 'sync'];
 const REFRESH_BUTTON_FEEDBACK_MS = 700;
 const LIVE_TOKEN_RATE_ACTIVE_MS = 8000;
 const LIVE_TOKEN_RATE_CLEAR_MS = 3 * 60 * 1000;
@@ -1310,7 +1311,7 @@ function formatCost(value, unpricedTokens) {
   return usageAttributionRowsApi.usageCostLabel(value, unpricedTokens,
     (cost) => currencyApi.formatCurrencyFromUsd(cost, currentCurrency()), formatNumber, t('usage.unpricedTokens'));
 }
-function setTotalCost(cost, unpricedTokens, available = true) {
+function setTotalCost(cost, unpricedTokens, available = true, credits) {
   let label = els.cost.querySelector('.usage-cost-value');
   if (!label) {
     label = document.createElement('span');
@@ -1321,6 +1322,7 @@ function setTotalCost(cost, unpricedTokens, available = true) {
   els.cost.classList.toggle('has-unpriced', hasUnpriced);
   label.textContent = available
     ? (hasUnpriced && !(cost > 0) ? '—' : formatCost(cost)) : '';
+  if (available && credits !== undefined) label.textContent += ` + ${window.TokenMonitorVerdentPresentation.creditsLabel(credits)}`;
   let info = els.cost.querySelector('.usage-cost-info');
   if (!info && hasUnpriced) {
     info = document.createElement('span');
@@ -2595,7 +2597,7 @@ function updateRowLive(row, activityState, activityAt) {
   dot.classList.add('pulse');
 }
 
-function updateRow(row, { name, subtitle, subtitleIdentity, subagentCountLabel, activity, detail, value, cost, unpricedTokens, barValue, max, color, barBackground, accordionRows, deviceDetail, stale, platform, local, client, kind, modelSource, cacheReadTokens, outputTokens, unclassifiedTokens, modelRows, modelLabel, modelTooltipEntries, titleModelLabel, tokenDataUnavailable, sessionDetailAvailable, sessionGroup, running, activityState, context, promptCache, contextSnapshot, sortTime }) {
+function updateRow(row, { name, subtitle, subtitleIdentity, subagentCountLabel, activity, detail, value, cost, credits, creditsOnly, unpricedTokens, barValue, max, color, barBackground, accordionRows, deviceDetail, stale, platform, local, client, kind, modelSource, cacheReadTokens, outputTokens, unclassifiedTokens, modelRows, modelLabel, modelTooltipEntries, titleModelLabel, tokenDataUnavailable, sessionDetailAvailable, sessionGroup, running, activityState, context, promptCache, contextSnapshot, sortTime }) {
   const width = rowWidth(barValue, max);
   const isExpanded = row.classList.contains('expanded');
   // `running` still drives the row class for layout, but the mark's own state
@@ -2720,9 +2722,10 @@ function updateRow(row, { name, subtitle, subtitleIdentity, subagentCountLabel, 
   valueEl.dataset.motionValue = String(Number(value) || 0);
   row.dataset.motionValue = String(Number(value) || 0);
   const costEl = row.querySelector('.row-cost');
-  const costLabelText = formatCost(cost || 0, unpricedTokens);
+  const creditText = credits === undefined ? '' : window.TokenMonitorVerdentPresentation.creditsLabel(credits);
+  const costLabelText = creditsOnly ? creditText : formatCost(cost || 0, unpricedTokens) + (creditText ? ` + ${creditText}` : '');
   costEl.textContent = tokenDataUnavailable === true ? ''
-    : unpricedTokens > 0 ? (cost > 0 ? `${formatCost(cost)} + ?` : '—') : costLabelText;
+    : creditsOnly ? creditText : unpricedTokens > 0 ? (cost > 0 ? `${formatCost(cost)} + ?${creditText ? ` + ${creditText}` : ''}` : `—${creditText ? ` + ${creditText}` : ''}`) : costLabelText;
   costEl.title = tokenDataUnavailable === true ? '' : costLabelText;
   // The row builder already applied the shared gate (recent enough to have a
   // reading), so this draws whatever arrived rather than re-deciding from
@@ -3079,7 +3082,13 @@ function periodAttributionRows(period, values, costs, unpricedTokens) {
 
 function toolRowsForPeriod(period) {
   const clientRows = periodAttributionRows(period, period?.clients, period?.clientCosts, period?.clientUnpricedTokens)
-    .map(({ key: client, value, cost, unpricedTokens }) => ({ key: client, unpricedTokens, name: client === usageAttributionRowsApi.UNATTRIBUTED_KEY ? t('dashboard.tooltip.unclassified') : clientLabels[client] || client, value, cost, color: clientColors[client] || clientColors.default, stale: false, cacheReadTokens: attributionComponent(period, 'clientCacheReads', client), cacheWriteTokens: attributionComponent(period, 'clientCacheWrites', client), outputTokens: attributionComponent(period, 'clientOutputs', client), unclassifiedTokens: attributionComponent(period, 'clientUnclassifiedTokens', client), modelRows: toolDetailsApi.visibleModelRowsForTool(period, client, formatCost) }));
+    .map(({ key: client, value, cost, unpricedTokens }) => ({ key: client, unpricedTokens, name: client === 'verdent' ? 'Verdent' : client === usageAttributionRowsApi.UNATTRIBUTED_KEY ? t('dashboard.tooltip.unclassified') : clientLabels[client] || client, value, cost, color: clientColors[client] || clientColors.default, stale: false, cacheReadTokens: attributionComponent(period, 'clientCacheReads', client), cacheWriteTokens: attributionComponent(period, 'clientCacheWrites', client), outputTokens: attributionComponent(period, 'clientOutputs', client), unclassifiedTokens: attributionComponent(period, 'clientUnclassifiedTokens', client), modelRows: toolDetailsApi.visibleModelRowsForTool(period, client, formatCost) }));
+  if (period?.verdent) {
+    let row = clientRows.find(item => item.key === 'verdent');
+    if (!row) { row = { key: 'verdent', value: 0, cost: 0 }; clientRows.push(row); }
+    Object.assign(row, { name: 'Verdent', color: '#60b68a', credits: period.verdent.credits, creditsOnly: true,
+      subtitle: '', client: 'verdent' });
+  }
   if (clientRows.length > 0) {
     const usageSortedRows = clientRows.sort((a, b) => b.value - a.value);
     return clientDisplayPreferencesApi.applyClientDisplayPreferences(usageSortedRows, state.settings?.clientDisplayOrder, state.settings?.hiddenClients, KNOWN_CLIENTS, state.settings?.pinnedClients);
@@ -3097,6 +3106,8 @@ function modelRowsForPeriod(period, rankingMetric = state.settings?.modelRanking
     value,
     cost,
     unattributed,
+    credits: period?.modelCredits?.[model],
+    creditsOnly: cost === 0 && period?.modelCredits?.[model] !== undefined && Number(period?.clientModels?.verdent?.[model] || 0) === value,
     modelSource: model === 'unknown' ? unknownSource : null,
     color: model === 'unknown' ? (unknownSource ? clientColors[unknownSource] : 'var(--muted)') : modelColor(model),
     stale: false,
@@ -3156,7 +3167,7 @@ function sessionRowsForPeriod(period) {
     rows.sort((a, b) => b.sortTime - a.sortTime || b.value - a.value || b.cost - a.cost || a.name.localeCompare(b.name));
     return sessionRowsApi.groupSessionRows(rows, sessionPresentationOptions());
   }
-  if (Number(period?.totalTokens || 0) === 0) return [];
+  if (Number(period?.totalTokens || 0) === 0 || period?.verdent) return [];
   return modelRowsForPeriod(period);
 }
 
@@ -3173,7 +3184,11 @@ function projectRowsForPeriod(period) {
 }
 
 function rowsForPeriod(period) {
-  if (state.breakdown === 'device') return deviceRowsForPeriod();
+  if (state.breakdown === 'device') {
+    const rows = deviceRowsForPeriod();
+    if (period?.verdent) rows.push({ key: 'verdent', client: 'verdent', name: 'Verdent', subtitle: '', value: period.verdent.tokens, cost: 0, credits: period.verdent.credits, creditsOnly: true, color: '#60b68a' });
+    return rows.sort((a, b) => b.value - a.value);
+  }
   if (state.breakdown === 'model') return modelRowsForPeriod(period);
   if (state.breakdown === 'session') return sessionRowsForPeriod(period);
   if (state.breakdown === 'project') return projectRowsForPeriod(period);
@@ -5505,6 +5520,8 @@ function renderTrends() {
     [t('trends.activeTime'), formatActiveDuration(summary.activeTimeMs)],
     [t('trends.peakDay'), formatCompact(summary.peakDayTokens)]
   ];
+  const verdentPeriod = fixed?.status === 'ready' ? fixed.period : state.stats?.periods?.[state.period];
+  if (verdentPeriod?.verdent) stats.push(['Verdent Credits', window.TokenMonitorVerdentPresentation.creditsLabel(verdentPeriod.verdent.credits)]);
   const statsHtml = stats
     .map(([k, v]) => `<div class="trends-stat"><span class="trends-stat-v">${v}</span><span class="trends-stat-k">${k}</span></div>`)
     .join('');
@@ -5729,7 +5746,9 @@ function buildFixedPeriodSnapshot() {
   if (state.fixedPeriodHistoryFailed) {
     return { status: 'unavailable', reason: 'historyUnavailable', period: null };
   }
-  return buildFixedPeriodSourcesSnapshot();
+  const snapshot = buildFixedPeriodSourcesSnapshot();
+  if (snapshot.status !== 'ready' || !state.stats?.verdentUsage) return snapshot;
+  return window.TokenMonitorVerdentPresentation.projectFixedSnapshot(snapshot, state.stats.verdentUsage, state.period);
 }
 
 async function performFixedPeriodHistoryLoad({ force = false, signature = fixedPeriodHistorySignature() } = {}) {
@@ -6354,7 +6373,7 @@ function renderHomeModelModule(period) {
 function homeToolSourceRows(period) {
   return periodAttributionRows(period, period?.clients, period?.clientCosts, period?.clientUnpricedTokens).map(({ key: client, value }) => ({
     key: client,
-    name: client === usageAttributionRowsApi.UNATTRIBUTED_KEY ? t('dashboard.tooltip.unclassified') : clientLabels[client] || client,
+    name: client === 'verdent' ? 'Verdent' : client === usageAttributionRowsApi.UNATTRIBUTED_KEY ? t('dashboard.tooltip.unclassified') : clientLabels[client] || client,
     value: Number(value || 0),
     color: clientColors[client] || clientColors.default
   }));
@@ -6383,7 +6402,7 @@ function renderHomeToolModule(period) {
     value.textContent = formatCompact(row.value);
     const share = document.createElement('span');
     share.className = 'home-list-aux';
-    share.textContent = formatPercent(row.share * 100);
+    share.textContent = row.key === 'verdent' && period.verdent ? window.TokenMonitorVerdentPresentation.creditsLabel(period.verdent.credits) : formatPercent(row.share * 100);
     item.append(mark, name, value, share);
     body.append(item);
   }
@@ -6836,7 +6855,8 @@ function setupHomeActivityHover(scroller) {
       activeCell.setAttribute('data-active', 'true');
       tooltip.querySelector('[data-home-activity-tooltip-count]').textContent = formatCompact(Number(cell.dataset.t || 0));
       tooltip.querySelector('[data-home-activity-tooltip-label]').textContent = 'tokens';
-      tooltip.querySelector('[data-home-activity-tooltip-date]').textContent = cell.dataset.d || '';
+      const usageDay = state.stats?.verdentUsage?.daily.find(day => day.date === cell.dataset.d);
+      tooltip.querySelector('[data-home-activity-tooltip-date]').textContent = (cell.dataset.d || '') + (usageDay ? ` · ${window.TokenMonitorVerdentPresentation.creditsLabel(usageDay.credits)}` : '');
     }
     tooltip.dataset.visible = 'true';
     tooltip.setAttribute('aria-hidden', 'false');
@@ -7176,7 +7196,7 @@ function render() {
     cancelNumberAnimation();
     els.totalTokens.textContent = fixedUnavailable ? '—' : formatNumber(Number(period.totalTokens || 0));
     updateTotalCompact(fixedUnavailable ? 0 : Number(period.totalTokens || 0));
-    setTotalCost(period.costUsd || 0, period.unpricedTokens, !fixedUnavailable);
+    setTotalCost(period.costUsd || 0, period.unpricedTokens, !fixedUnavailable, period.verdent?.credits);
     state.currentTotal = fixedUnavailable ? 0 : Number(period.totalTokens || 0);
     hidePeriodContentForMessage(fixedPeriodMessage(state.fixedPeriodSnapshot, detailUnavailable ? state.breakdown : ''));
     renderFloatingBubbleContent();
@@ -7212,7 +7232,7 @@ function render() {
     updateTotalCompact(nextTotal);
   }
   state.currentTotal = nextTotal;
-  setTotalCost(period.costUsd || 0, period.unpricedTokens);
+  setTotalCost(period.costUsd || 0, period.unpricedTokens, true, period.verdent?.credits);
   renderTokenRate();
   if (!state.refreshBusy && !state.refreshFeedbackTimer) setRefreshButtonState('idle');
   els.shell.classList.toggle('session-mode', state.breakdown === 'session');

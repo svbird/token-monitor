@@ -734,6 +734,19 @@
           </div>
         </div>
 
+        <div class="settings-group settings-collapsible-group settings-verdent-group">
+          <button class="settings-section-toggle" type="button" data-settings-section="verdent" aria-expanded="false" aria-controls="verdentSettingsDetails">
+            <span class="settings-section-heading"><span class="settings-section-icon settings-section-icon-verdent" aria-hidden="true"></span><span>Verdent</span></span>
+            <span class="settings-section-meta"><span id="verdentSettingsSummary" class="settings-section-summary"></span><span class="settings-section-disclosure" aria-hidden="true"></span></span>
+          </button>
+          <div id="verdentSettingsDetails" class="settings-section-details hidden">
+            <label class="checkbox-label settings-item"><span class="settings-item-text"><span class="settings-item-title">采集 Verdent 用量</span></span><input id="verdentEnabled" type="checkbox"></label>
+            <p id="verdentCollectionStatus" class="settings-note" role="status" aria-live="polite"></p>
+            <p id="verdentSettingsError" class="settings-note" role="alert"></p>
+            <div class="settings-actions"><button id="verdentOpen" type="button">管理账号、采集与历史</button></div>
+          </div>
+        </div>
+
         <div class="settings-group settings-collapsible-group settings-limits-group">
           <button class="settings-section-toggle" type="button" data-settings-section="limits" aria-expanded="false" aria-controls="limitsSettingsDetails">
             <span class="settings-section-heading"><span class="settings-section-icon settings-section-icon-limits" aria-hidden="true"></span><span data-i18n="settings.limits.title">AI Tool Limits</span></span>
@@ -1746,6 +1759,9 @@
     <script src="glassRendering.js"></script>
     <script src="trayComposer.js"></script>
     <script src="diagnosticsPanel.js"></script>
+    <script src="../providers/verdent/presentation.js"></script>
     <script src="app.js"></script>
+    <script src="verdentEntry.js"></script>
+    <script src="verdentSettings.js"></script>
   </body>
 </html>
